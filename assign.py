@@ -213,11 +213,8 @@ def gene_area(choices, points, conf, dev = None, hw_ind = None, area = None):
     return area_table
 
 
-def dfs(choices, node_list, conf_lst, state):
-    if state.layer == len(conf_lst):
-        # print(state.bucket)
-        # find area ratio
-        max_dev = dict()
+def param_opt():
+    max_dev = dict()
         constraint_lst = dict()
         total_dev = 0
         sp = [1 for _ in range(len(node_list))]
@@ -368,8 +365,14 @@ def dfs(choices, node_list, conf_lst, state):
                     config_queue = [config_queue[maxi]]
                 else: 
                     break
+            final_pareto.append(pareto_lst)
 
 
+
+def dfs(choices, node_list, conf_lst, state):
+    if state.layer == len(conf_lst):
+        # print(state.bucket)
+        # find area ratio
 
                 # for [ind, item] in enumerate(pareto_lst):
                 #     if config_queue[0].tot_lat > item[0] - 1e-3 and config_queue[0].tot_area > item[1] - 1e-3:
@@ -387,7 +390,6 @@ def dfs(choices, node_list, conf_lst, state):
                 # temp_conf = config_queue.pop(0)
                 # if len(config_queue) == 0: 
                 #     break
-            final_pareto.append(pareto_lst)
             # min_lat = -1
             # min_a = 0
             # for pair in pareto_lst:
@@ -396,7 +398,7 @@ def dfs(choices, node_list, conf_lst, state):
             #         min_a = pair[1]
             # print(min_lat, min_a, state.bucket)
             #from IPython import embed; embed()
-        
+        param_opt()
     else:
 
 
@@ -404,7 +406,7 @@ def dfs(choices, node_list, conf_lst, state):
         a = node_list[state.layer].param * w_prec / density[dev]
 
  
-
+        #region x
         # targ_area = dict()
         # for r in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]:
         #     #generate device area
@@ -460,7 +462,7 @@ def dfs(choices, node_list, conf_lst, state):
         #     dfs(choices, node_list, conf_lst, new_state)
 
         #from IPython import embed; embed()
-
+        #endregion
 
         dev = devices[conf_lst[state.layer]]        
         a = node_list[state.layer].param * w_prec / density[dev]
