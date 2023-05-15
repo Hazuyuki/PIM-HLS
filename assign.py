@@ -485,7 +485,7 @@ def dfs(choices, node_list, conf_lst, state):
         dfs(choices, node_list, conf_lst, new_state)
 
 
-def get_choices(choices):
+def get_choices(choices): #
     with open('choices_{}.out'.format(network), 'rb') as f: 
         ch_prev = pickle.load(f)
     for [ind, layer] in enumerate(ch_prev):
@@ -505,37 +505,48 @@ def get_choices(choices):
                     choices[ch.dev][ind].append(new_choice(ch))
 
 
-def type(node_list):
-    config_lst = []
+def gene_conf_lst(N_Network, net, Networks, node_list, conf_lst, final_pareto):
+    if net >= N_Network:
+        state = dfs_state()
+        dfs(choices, node_list, config_lst, state, final_pareto)
+        final_pareto.append(['stall'])
+    else:
+        config_lst[net] = [0 for _ in range(len(node_list))]
+        gene_conf_lst(N_Network, net + 1, Networks, node_list, conf_lst, final_pareto)
+        for i in trange(len(node_list[net])):
+            config_lst[net] = []
+            for j in range(len(node_list[net])):
+                if node_list[net][j].param /node_list[net][j].flops  > node_list[net][i].param /node_list[net][j].flops: 
+                    config_lst[net].append(0)
+                else:
+                    config_lst[net].append(1)
+            gene_conf_lst(N_Network, net + 1, Networks, node_list, conf_lst, final_pareto)
 
-    choices = dict()
-    for dev in devices:
-        choices[dev] = [[] for _ in range(len(node_list))]
-    get_choices(choices)
+
+def type(N_Network, Networks, node_list):
+
+
+    config_lst = list([] for _ in range(N_Network))
+
+    choices = list(dict() for _ in range(N_Network))
+    for net in range(N_Network):
+        for dev in devices:
+            choices[net][dev] = [[] for _ in range(len(node_list[net]))]
+        get_choices(choices, Networks[net])
     #from IPython import embed; embed()
     if not cri_enable:
-        for i in trange(len(devices) ** len(node_list)):
-            config_lst.append([])
-            k = i
-            for layer in node_list:
-                config_lst[-1].append(k % len(devices))
-                k = k // len(devices)
-            state = dfs_state()
-            dfs(choices, node_list, config_lst[-1], state)
+        # for i in trange(len(devices) ** len(node_list)):
+        #     config_lst.append([])
+        #     k = i
+        #     for layer in node_list:
+        #         config_lst[-1].append(k % len(devices))
+        #         k = k // len(devices)
+        #     state = dfs_state()
+        #     dfs(choices, node_list, config_lst[-1], state)
+        pass
     else:
-        state = dfs_state()
-        dfs(choices, node_list, [0 for _ in range(len(node_list))], state)
-        final_pareto.append(['stall'])
-        for i in trange(len(node_list)):
-            config_lst = []
-            for j in range(len(node_list)):
-                if node_list[j].param /node_list[j].flops  > node_list[i].param /node_list[j].flops: 
-                    config_lst.append(0)
-                else:
-                    config_lst.append(1)
-            state = dfs_state()
-            dfs(choices, node_list, config_lst, state)
-            final_pareto.append(['stall'])
+        config_lst = list([] for _ in range(N_Network))
+        gene_conf_lst(N_Network, 0, Networks, node_list, config_lst)
     
     #print(tot)
     with open(dumpfile, 'wb') as f:
