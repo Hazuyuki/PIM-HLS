@@ -370,119 +370,63 @@ def param_opt():
 
 
 def dfs(choices, node_list, conf_lst, state):
-    if state.layer == len(conf_lst):
-        # print(state.bucket)
-        # find area ratio
 
-                # for [ind, item] in enumerate(pareto_lst):
-                #     if config_queue[0].tot_lat > item[0] - 1e-3 and config_queue[0].tot_area > item[1] - 1e-3:
-                #         ap = 0
-                #         break
-                #     if config_queue[0].tot_lat < item[0] - 1e-3 and config_queue[0].tot_area < item[1] - 1e-3:
-                #         del_lst.append(ind)
-                    
-                # for ind in del_lst[::-1]:
-                #     pareto_lst.pop(ind)
-                # if ap:
-                #     pareto_lst.append([config_queue[0].tot_lat, config_queue[0].tot_area])
-                # #print(config_queue[0].tot_area)
-                # # from IPython import embed; embed()
-                # temp_conf = config_queue.pop(0)
-                # if len(config_queue) == 0: 
-                #     break
-            # min_lat = -1
-            # min_a = 0
-            # for pair in pareto_lst:
-            #     if min_lat == -1 or min_lat > pair[0]:
-            #         min_lat = pair[0]
-            #         min_a = pair[1]
-            # print(min_lat, min_a, state.bucket)
-            #from IPython import embed; embed()
+    new_state = list(dfs_state(state) for _ in range(N_Network))
+    for net in range(N_Network):
+
+        targ_area = dict()
+        for r in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]:
+            #generate device area
+            targ_area['RRAM'] = r * area_constraint
+            targ_area['SRAM'] = (1-r) * area_constraint
+
+            temp_area = dict()
+            f = [0 for _ in range(len(conf_lst[net]))]
+            prev = [0 for _ in range(len(conf_lst[net]))]
+            for l_now in range(len(conf_lst[net])):
+                dev = devices[conf_lst[net][l_now]]
+                f[l_now] = f[l_now - 1] + choices[net][dev][l_now][0].latency if l_now > 0 else choices[net][dev][l_now][0].latency
+                prev[l_now] = l_now - 1
+                mini_lat = f[l_now]
+
+                for l_pre in range(l_now):
+                    for dev in devices:
+                        temp_area[dev] = 0
+                    bottleneck = -1
+                    for i in range(l_pre, l_now):
+                        #accumulate area
+                        dev = devices[conf_lst[net][i]]
+                        temp_area[dev] += node_list[net][i].param * w_prec / density[dev]
+                        bottleneck = max(bottleneck, choices[net][dev][i][0].latency)
+                    tot_lat = f[l_pre - 1] + bottleneck if l_pre > 0 else bottleneck
+                    legal = 1
+                    for dev in devices:
+                        if temp_area[dev] > targ_area[dev]:
+                            legal = 0
+                            break
+                    if legal:
+                        if mini_lat == -1 or mini_lat > tot_lat:
+                            f[l_now] = tot_lat
+                            prev[l_now] = l_pre
+                            mini_lat = tot_lat
+            #generate state
+            new_state[net].bucket = []
+            p = len(prev) - 1
+            while p > 0:
+                new_state[net].bucket = [[i for i in range(prev[p], p + 1)]] + new_state[net].bucket
+                p = prev[p] - 1
+            for buc in new_state.bucket:
+                new_state[net].area.append(dict())
+                for layer in buc:
+                    dev = devices[conf_lst[net][layer]]
+                    a = node_list[net][layer].param * w_prec / density[dev]
+                    if dev in new_state[net].area[-1].keys():
+                        new_state[net].area[-1][dev] += a
+                    else:
+                        new_state[net].area[-1][dev] = a
+            new_state.layer = len(conf_lst[net])
+            #dfs(choices, node_list, conf_lst, new_state)
         param_opt()
-    else:
-
-
-        dev = devices[conf_lst[state.layer]]
-        a = node_list[state.layer].param * w_prec / density[dev]
-
- 
-        #region x
-        # targ_area = dict()
-        # for r in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]:
-        #     #generate device area
-        #     targ_area['RRAM'] = r * area_constraint
-        #     targ_area['SRAM'] = (1-r) * area_constraint
-
-        #     temp_area = dict()
-        #     f = [0 for _ in range(len(conf_lst))]
-        #     prev = [0 for _ in range(len(conf_lst))]
-        #     for l_now in range(len(conf_lst)):
-        #         dev = devices[conf_lst[l_now]]
-        #         f[l_now] = f[l_now - 1] + choices[dev][l_now][0].latency if l_now > 0 else choices[dev][l_now][0].latency
-        #         prev[l_now] = l_now - 1
-        #         mini_lat = f[l_now]
-
-        #         for l_pre in range(l_now):
-        #             for dev in devices:
-        #                 temp_area[dev] = 0
-        #             bottleneck = -1
-        #             for i in range(l_pre, l_now):
-        #                 #accumulate area
-        #                 dev = devices[conf_lst[i]]
-        #                 temp_area[dev] += node_list[i].param * w_prec / density[dev]
-        #                 bottleneck = max(bottleneck, choices[dev][i][0].latency)
-        #             tot_lat = f[l_pre - 1] + bottleneck if l_pre > 0 else bottleneck
-        #             legal = 1
-        #             for dev in devices:
-        #                 if temp_area[dev] > targ_area[dev]:
-        #                     legal = 0
-        #                     break
-        #             if legal:
-        #                 if mini_lat == -1 or mini_lat > tot_lat:
-        #                     f[l_now] = tot_lat
-        #                     prev[l_now] = l_pre
-        #                     mini_lat = tot_lat
-        #     #generate state
-        #     new_state = dfs_state(state)
-        #     new_state.bucket = []
-        #     p = len(prev) - 1
-        #     while p > 0:
-        #         new_state.bucket = [[i for i in range(prev[p], p + 1)]] + new_state.bucket
-        #         p = prev[p] - 1
-        #     for buc in new_state.bucket:
-        #         new_state.area.append(dict())
-        #         for layer in buc:
-        #             dev = devices[conf_lst[layer]]
-        #             a = node_list[state.layer].param * w_prec / density[dev]
-        #             if dev in new_state.area[-1].keys():
-        #                 new_state.area[-1][dev] += a
-        #             else:
-        #                 new_state.area[-1][dev] = a
-        #     new_state.layer = len(conf_lst)
-        #     dfs(choices, node_list, conf_lst, new_state)
-
-        #from IPython import embed; embed()
-        #endregion
-
-        dev = devices[conf_lst[state.layer]]        
-        a = node_list[state.layer].param * w_prec / density[dev]
-        if state.layer > 0:
-            new_state = dfs_state(state)
-            new_state.layer += 1
-            new_state.bucket[-1].append(state.layer)
-            if dev in new_state.area[-1].keys():
-                new_state.area[-1][dev] += a
-            else:
-                new_state.area[-1][dev] = a
-            # from IPython import embed; embed()
-            dfs(choices, node_list, conf_lst, new_state)
-
-        new_state = dfs_state(state)
-        new_state.layer += 1
-        new_state.bucket.append([state.layer])
-        new_state.area.append(dict())
-        new_state.area[-1][dev] = a
-        dfs(choices, node_list, conf_lst, new_state)
 
 
 def get_choices(choices): #
