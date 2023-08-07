@@ -213,13 +213,14 @@ def gene_area(choices, points, conf, dev = None, hw_ind = None, area = None):
     return area_table
 
 
-def param_opt(N_Network, node_list, state, conf_lst, choices, final_pareto):
-    from IPython import  embed; embed()
+def param_opt(N_Network, node_list, cp, state, conf_lst, choices, final_pareto):
+    from IPython import embed; embed()
     max_dev = dict()
     constraint_lst = dict()
     total_dev = 0
+    sp = [[] for _ in range(N_Network)]
     for net in range(N_Network):
-        sp = [1 for _ in range(len(node_list[net]))]
+        sp[net] = [1 for _ in range(len(node_list[net]))]
         for dev in devices:
             max_dev[dev] = 0
             for [ind, area] in enumerate(state[net].area):
@@ -227,7 +228,7 @@ def param_opt(N_Network, node_list, state, conf_lst, choices, final_pareto):
                     if area[dev] > area_constraint and len(state[net].bucket[ind]) == 1:
                         k = ceil(area[dev] / area_constraint)
                         new_a = area[dev] / k
-                        sp[state[net].bucket[ind][0]] = k
+                        sp[net][state[net].bucket[ind][0]] = k
                     else:
                         new_a = area[dev]
                     max_dev[dev] = max(max_dev[dev], new_a)
@@ -240,7 +241,38 @@ def param_opt(N_Network, node_list, state, conf_lst, choices, final_pareto):
 
         # optimize the hardware parameter
         prune = 1
-
+        ch = 
+        array_table = 
+        for net in range(N_Network):
+            for [buc_ind, buc] in enumerate(state[net].bucket):
+                done = []
+                start = 0
+                for _ in range(len(buc)):
+                    max_lat = -1
+                    for layer in buc:
+                        if choices[].lat > max_lat and not layer in done:
+                            max_lat = choices[].lat
+                            max_ind = layer
+                    done.append(max_ind)
+                    end = start+cp[net][max_ind]/sp[net][max_ind]
+                    array_table[start:end][net][buc_ind] = max_ind
+                    start = end
+        array_set_table = get_array_set_table(array_table)
+        ch_lst = [0 for _ in range(len(array_set_table))]
+        lat_table = get_lat(array_set_table, ch_lst)
+        while 1:
+            score = -1
+            for array in range(len(array_set_table)):
+                for ch in range(ch_lst[array] + 1, )
+                    new_score = calc_score()
+                    if new_score > score:
+                        max_ch = ch
+                        max_arr = array
+            if score <= 0:
+                break
+            else:
+                ch_lst[max_arr] = max_ch
+                lat_table = get_lat(array_set_table, ch_lst)
         # for each state[net].bucket: 
         #     sort;
         #     bind;
@@ -387,17 +419,17 @@ def param_opt(N_Network, node_list, state, conf_lst, choices, final_pareto):
 def dfs(choices, node_list, conf_lst, state, final_pareto):
     N_Network = len(choices)
     new_state = list(dfs_state(state) for _ in range(N_Network))
-    for net in range(N_Network):
-
-        targ_area = dict()
-        for r in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]:
-            #generate device area
-            targ_area['RRAM'] = r * area_constraint
-            targ_area['SRAM'] = (1-r) * area_constraint
-
+    targ_area = dict()
+    for r in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]:
+        #generate device area
+        targ_area['RRAM'] = r * area_constraint
+        targ_area['SRAM'] = (1-r) * area_constraint
+        cp = [[] for _ in range(N_Network)]
+        for net in range(N_Network):
             temp_area = dict()
             f = [0 for _ in range(len(conf_lst[net]))]
             prev = [0 for _ in range(len(conf_lst[net]))]
+            cp[net] = [1 for _ in range(len(conf_lst[net]))]
             for l_now in range(len(conf_lst[net])):
                 dev = devices[conf_lst[net][l_now]]
                 f[l_now] = f[l_now - 1] + choices[net][dev][l_now][0].latency if l_now > 0 else choices[net][dev][l_now][0].latency
@@ -408,12 +440,41 @@ def dfs(choices, node_list, conf_lst, state, final_pareto):
                 for l_pre in range(l_now):
                     for dev in devices:
                         temp_area[dev] = 0
-                    bottleneck = -1
+                    #bottleneck = -1
+
+
+
+
                     for i in range(l_pre, l_now):
                         #accumulate area
                         dev = devices[conf_lst[net][i]]
                         temp_area[dev] += node_list[net][i].param * w_prec / density[dev]
-                        bottleneck = max(bottleneck, choices[net][dev][i][0].latency)
+
+                        #bottleneck = max(bottleneck, choices[net][dev][i][0].latency)
+                    
+                    def find_cp(choices, net, conf_lst, l_pre, l_now, cp, targ_area):
+                        max_lat = -1
+                        btn = -1
+                        while 1:
+                            for i in range(l_pre, l_now):
+                                dev = devices[conf_lst[net][i]]
+                                if choices[net][dev][i][0].latency > max_lat:
+                                    max_lat = choices[net][dev][i][0].latency
+                                    btn = i
+                            dev = devices[conf_lst[net][btn]]
+                            if temp_area[dev] + node_list[net][btn].param * w_prec / density[dev] <= targ_area[dev]:
+                                cp[btn] += 1
+                                temp_area[dev] += node_list[net][btn].param * w_prec / density[dev]
+                            else: 
+                                bottleneck = max_lat
+                                break
+                        return bottleneck, cp
+
+                    bottleneck, cp[net] = find_cp(choices, net, conf_lst, l_pre, l_now, cp[net], targ_area)
+
+                    
+                    
+                    
                     tot_lat = f[l_pre - 1] + bottleneck if l_pre > 0 else bottleneck
                     legal = 1
                     for dev in devices:
@@ -443,7 +504,7 @@ def dfs(choices, node_list, conf_lst, state, final_pareto):
             new_state[net].layer = len(conf_lst[net])
             #dfs(choices, node_list, conf_lst, new_state)
 
-    param_opt(N_Network, node_list, new_state, conf_lst, choices, final_pareto)
+        param_opt(N_Network, node_list, cp, new_state, conf_lst, choices, final_pareto)
 
 
 def get_choices(choices, network): #
