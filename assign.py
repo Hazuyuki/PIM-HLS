@@ -213,19 +213,21 @@ def gene_area(choices, points, conf, dev = None, hw_ind = None, area = None):
     return area_table
 
 
-def param_opt():
+def param_opt(N_Network, node_list, state, conf_lst, choices, final_pareto):
+    from IPython import  embed; embed()
     max_dev = dict()
-        constraint_lst = dict()
-        total_dev = 0
-        sp = [1 for _ in range(len(node_list))]
+    constraint_lst = dict()
+    total_dev = 0
+    for net in range(N_Network):
+        sp = [1 for _ in range(len(node_list[net]))]
         for dev in devices:
             max_dev[dev] = 0
-            for [ind, area] in enumerate(state.area):
+            for [ind, area] in enumerate(state[net].area):
                 if dev in area.keys():
-                    if area[dev] > area_constraint and len(state.bucket[ind]) == 1:
+                    if area[dev] > area_constraint and len(state[net].bucket[ind]) == 1:
                         k = ceil(area[dev] / area_constraint)
                         new_a = area[dev] / k
-                        sp[state.bucket[ind][0]] = k
+                        sp[state[net].bucket[ind][0]] = k
                     else:
                         new_a = area[dev]
                     max_dev[dev] = max(max_dev[dev], new_a)
@@ -233,18 +235,31 @@ def param_opt():
         for dev in devices:
             constraint_lst[dev] = area_constraint * max_dev[dev] / total_dev
 
-        # optimize the hardware parameter
-        prune = 0
-        for [ind, a] in enumerate(state.area):
-            for dev in devices:
-                if dev in a.keys():
-                    if a[dev] > constraint_lst[dev]:
 
-                        if len(state.bucket[ind]) == 1:
-                            pass
-                        else:
-                        #print(a[dev])
-                            prune = 1
+
+
+        # optimize the hardware parameter
+        prune = 1
+
+        # for each state[net].bucket: 
+        #     sort;
+        #     bind;
+        # while optimizable:
+        #     for layergrp:
+        #         calc: lat * weight / area
+        #     optimize: layergrp
+
+        for net in range(N_Network):
+            for [ind, area] in enumerate(state[net].area):
+                for dev in devices:
+                    if dev in area.keys():
+                        if area[dev] > constraint_lst[dev]:
+
+                            if len(state.bucket[ind]) == 1:
+                                pass
+                            else:
+                            #print(a[dev])
+                                prune = 1
 
         if not prune:
             global tot 
@@ -369,8 +384,8 @@ def param_opt():
 
 
 
-def dfs(choices, node_list, conf_lst, state):
-
+def dfs(choices, node_list, conf_lst, state, final_pareto):
+    N_Network = len(choices)
     new_state = list(dfs_state(state) for _ in range(N_Network))
     for net in range(N_Network):
 
@@ -386,6 +401,7 @@ def dfs(choices, node_list, conf_lst, state):
             for l_now in range(len(conf_lst[net])):
                 dev = devices[conf_lst[net][l_now]]
                 f[l_now] = f[l_now - 1] + choices[net][dev][l_now][0].latency if l_now > 0 else choices[net][dev][l_now][0].latency
+
                 prev[l_now] = l_now - 1
                 mini_lat = f[l_now]
 
@@ -415,7 +431,7 @@ def dfs(choices, node_list, conf_lst, state):
             while p > 0:
                 new_state[net].bucket = [[i for i in range(prev[p], p + 1)]] + new_state[net].bucket
                 p = prev[p] - 1
-            for buc in new_state.bucket:
+            for buc in new_state[net].bucket:
                 new_state[net].area.append(dict())
                 for layer in buc:
                     dev = devices[conf_lst[net][layer]]
@@ -424,12 +440,13 @@ def dfs(choices, node_list, conf_lst, state):
                         new_state[net].area[-1][dev] += a
                     else:
                         new_state[net].area[-1][dev] = a
-            new_state.layer = len(conf_lst[net])
+            new_state[net].layer = len(conf_lst[net])
             #dfs(choices, node_list, conf_lst, new_state)
-        param_opt()
+
+    param_opt(N_Network, node_list, new_state, conf_lst, choices, final_pareto)
 
 
-def get_choices(choices): #
+def get_choices(choices, network): #
     with open('choices_{}.out'.format(network), 'rb') as f: 
         ch_prev = pickle.load(f)
     for [ind, layer] in enumerate(ch_prev):
@@ -445,26 +462,29 @@ def get_choices(choices): #
                     choices[ch.dev][ind].append(new_choice(ch))
                     print(ch.dev, ch.area)
             else:
+                #from IPython import embed; embed()
                 if ch.dev in devices:
                     choices[ch.dev][ind].append(new_choice(ch))
 
 
-def gene_conf_lst(N_Network, net, Networks, node_list, conf_lst, final_pareto):
+def gene_conf_lst(N_Network, net, Networks, node_list, conf_lst, final_pareto, choices):
     if net >= N_Network:
+        #print(conf_lst)
+        #from IPython import embed; embed()
         state = dfs_state()
-        dfs(choices, node_list, config_lst, state, final_pareto)
+        dfs(choices, node_list, conf_lst, state, final_pareto)
         final_pareto.append(['stall'])
     else:
-        config_lst[net] = [0 for _ in range(len(node_list))]
-        gene_conf_lst(N_Network, net + 1, Networks, node_list, conf_lst, final_pareto)
+        conf_lst[net] = [0 for _ in range(len(node_list[net]))]
+        gene_conf_lst(N_Network, net + 1, Networks, node_list, conf_lst, final_pareto, choices)
         for i in trange(len(node_list[net])):
-            config_lst[net] = []
+            conf_lst[net] = []
             for j in range(len(node_list[net])):
                 if node_list[net][j].param /node_list[net][j].flops  > node_list[net][i].param /node_list[net][j].flops: 
-                    config_lst[net].append(0)
+                    conf_lst[net].append(0)
                 else:
-                    config_lst[net].append(1)
-            gene_conf_lst(N_Network, net + 1, Networks, node_list, conf_lst, final_pareto)
+                    conf_lst[net].append(1)
+            gene_conf_lst(N_Network, net + 1, Networks, node_list, conf_lst, final_pareto, choices)
 
 
 def type(N_Network, Networks, node_list):
@@ -476,7 +496,7 @@ def type(N_Network, Networks, node_list):
     for net in range(N_Network):
         for dev in devices:
             choices[net][dev] = [[] for _ in range(len(node_list[net]))]
-        get_choices(choices, Networks[net])
+        get_choices(choices[net], Networks[net])
     #from IPython import embed; embed()
     if not cri_enable:
         # for i in trange(len(devices) ** len(node_list)):
@@ -490,7 +510,7 @@ def type(N_Network, Networks, node_list):
         pass
     else:
         config_lst = list([] for _ in range(N_Network))
-        gene_conf_lst(N_Network, 0, Networks, node_list, config_lst)
+        gene_conf_lst(N_Network, 0, Networks, node_list, config_lst, final_pareto, choices)
     
     #print(tot)
     with open(dumpfile, 'wb') as f:
