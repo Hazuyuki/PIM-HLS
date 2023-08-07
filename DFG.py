@@ -171,9 +171,9 @@ if __name__ == '__main__':
             layers.append(node)
             tot += node.param
             print(node.param * 8)
-    from IPython import embed; embed()
+    #from IPython import embed; embed()
     import assign
-    assign.type(layers)
+    assign.type(1, ['vgg8'], [layers])
 
     # import sim
     # sim.search(node_list)
