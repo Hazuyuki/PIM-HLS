@@ -240,39 +240,82 @@ def param_opt(N_Network, node_list, cp, state, conf_lst, choices, final_pareto):
 
 
         # optimize the hardware parameter
-        prune = 1
-        ch = 
-        array_table = 
-        for net in range(N_Network):
-            for [buc_ind, buc] in enumerate(state[net].bucket):
-                done = []
-                start = 0
-                for _ in range(len(buc)):
-                    max_lat = -1
-                    for layer in buc:
-                        if choices[].lat > max_lat and not layer in done:
-                            max_lat = choices[].lat
-                            max_ind = layer
-                    done.append(max_ind)
-                    end = start+cp[net][max_ind]/sp[net][max_ind]
-                    array_table[start:end][net][buc_ind] = max_ind
-                    start = end
-        array_set_table = get_array_set_table(array_table)
-        ch_lst = [0 for _ in range(len(array_set_table))]
-        lat_table = get_lat(array_set_table, ch_lst)
-        while 1:
-            score = -1
-            for array in range(len(array_set_table)):
-                for ch in range(ch_lst[array] + 1, )
-                    new_score = calc_score()
-                    if new_score > score:
-                        max_ch = ch
-                        max_arr = array
-            if score <= 0:
-                break
-            else:
-                ch_lst[max_arr] = max_ch
-                lat_table = get_lat(array_set_table, ch_lst)
+    prune = 1
+    ch = 
+    array_table = 
+    split = list(False for _ in range())
+    for net in range(N_Network):
+        for [buc_ind, buc] in enumerate(state[net].bucket):
+            done = []
+            start = 0
+            split[start] = True
+            for _ in range(len(buc)):
+                max_lat = -1
+                for layer in buc:
+                    if choices[].lat > max_lat and not layer in done:
+                        max_lat = choices[].lat
+                        max_ind = layer
+                done.append(max_ind)
+                end = start+cp[net][max_ind]/sp[net][max_ind]
+                split[end] = True
+                array_table[start:end][net][buc_ind] = max_ind
+                start = end
+
+
+    def get_array_set_table(array_table):
+        counter = -1
+        for [ind, point] in enumerate(split):
+            if split: 
+                counter += 1
+            split[ind] = counter
+        for ind in range(len(split)):
+            for net in range(N_Network):
+                for [buc_ind, buc] in enumerate(state[net].bucket):
+                    array_set_table[split[ind]][net][buc_ind] = array_table[ind][net][buc_ind]
+        return array_set_table
+
+
+
+
+    array_set_table = get_array_set_table(array_table)
+    ch_lst = [0 for _ in range(len(array_set_table))]
+
+    def get_lat(array_set_table, ch_lst):
+        for setind in range(len(array_set_table)):
+            for net in range(N_Network):
+                for [buc_ind, buc] in enumerate(state[net].bucket):
+                    lat_table[setind][net][buc_ind] = ch[net][array_set_table[setind][net][buc_ind]][ch_lst[setind]].latency
+        return lat_table
+
+
+    lat_table = get_lat(array_set_table, ch_lst)    
+
+    def calc_score():
+        score = 0
+        for setind in range(len(lat_table)):
+            for net in range(N_Network):
+                for [buc_ind, buc] in enumerate(state[net].bucket):
+                    bottleneck = max()
+                score += bottleneck * importance[net]
+
+
+    while 1:
+        score = -1
+        for array in range(len(array_set_table)):
+            for ch in range(ch_lst[array] + 1, )
+                new_score = calc_score()
+                if new_score > score:
+                    max_ch = ch
+                    max_arr = array
+                    score = new_score
+        if score <= 0:
+            break
+        else:
+            ch_lst[max_arr] = max_ch
+            lat_table = get_lat(array_set_table, ch_lst)
+
+
+
         # for each state[net].bucket: 
         #     sort;
         #     bind;
